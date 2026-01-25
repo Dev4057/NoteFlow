@@ -18,7 +18,7 @@ def midi_to_note(midi_number: int) -> str:
         Note name with octave (e.g., "C4", "A#5")
     """
     notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-    octave = (midi_number // 12) - 1
+    octave = (midi_number // 12) - 2
     note = notes[midi_number % 12]
     return f"{note}{octave}"
 
