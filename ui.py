@@ -4,10 +4,13 @@ PyQt5 GUI for NoteFlow application
 """
 
 import sys
+import os
+import glob
+import logging
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                               QPushButton, QComboBox, QTextEdit, QLabel, 
-                              QFileDialog, QMessageBox, QStatusBar, QFrame)
-from PyQt5.QtCore import QTimer, Qt
+                              QMessageBox, QStatusBar, QFrame, QApplication)
+from PyQt5.QtCore import QTimer, Qt, QDateTime
 from PyQt5.QtGui import QPainter, QColor, QFont
 from midi_handler import MIDIHandler
 from note_recorder import NoteRecorder
@@ -38,8 +41,8 @@ class VisualKeyboard(QWidget):
     def setup_keys(self):
         """Setup the 61 keys (C1 to C6)"""
         # 61 keys from C1 (MIDI 24) to C6 (MIDI 84)
-        start_midi = 24  # C1
-        end_midi = 84    # C6
+        start_midi = 36  # C1
+        end_midi = 96    # C6
         
         white_key_width = 20
         black_key_width = 12
@@ -51,7 +54,7 @@ class VisualKeyboard(QWidget):
         for midi_num in range(start_midi, end_midi + 1):
             note_index = midi_num % 12
             note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-            octave = (midi_num // 12) - 1
+            octave = (midi_num // 12) - 2
             note_name = f"{note_names[note_index]}{octave}"
             
             # Check if this is a black key
@@ -69,7 +72,7 @@ class VisualKeyboard(QWidget):
         for midi_num in range(start_midi, end_midi + 1):
             note_index = midi_num % 12
             note_names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-            octave = (midi_num // 12) - 1
+            octave = (midi_num // 12) - 2
             note_name = f"{note_names[note_index]}{octave}"
             
             is_black = '#' in note_name
@@ -134,11 +137,27 @@ class MainWindow(QMainWindow):
         self.midi_handler = MIDIHandler()
         self.note_recorder = NoteRecorder()
         self.word_exporter = WordExporter()
+        self.exports_dir = os.path.join(os.path.dirname(__file__), "exports")
+        os.makedirs(self.exports_dir, exist_ok=True)
         
         self.setup_ui()
         self.setup_midi_callbacks()
         self.setup_timer()
         self.refresh_midi_devices()
+
+    def _auto_filepath(self, extension: str) -> str:
+        """Build an auto-generated file path in the exports folder."""
+        timestamp = QDateTime.currentDateTime().toString("yyyyMMdd_HHmmss")
+        filename = f"recording_{timestamp}.{extension.lstrip('.')}"
+        return os.path.join(self.exports_dir, filename)
+
+    def _latest_file(self, extension: str):
+        """Return the most recent file path with the given extension in exports."""
+        pattern = os.path.join(self.exports_dir, f"*.{extension.lstrip('.')}")
+        files = glob.glob(pattern)
+        if not files:
+            return None
+        return max(files, key=os.path.getmtime)
         
     def setup_ui(self):
         """Setup the user interface"""
@@ -326,65 +345,103 @@ class MainWindow(QMainWindow):
         
     def export_to_word(self):
         """Export recording to Word document"""
-        if self.note_recorder.get_note_count() == 0:
-            QMessageBox.warning(self, "No Notes", 
-                               "No notes to export. Please record some notes first.")
-            return
-        
-        filepath, _ = QFileDialog.getSaveFileName(
-            self, "Export to Word", "", "Word Documents (*.docx)")
-        
-        if filepath:
-            if not filepath.endswith('.docx'):
-                filepath += '.docx'
+        try:
+            logging.info("Export started")
+            if self.note_recorder.get_note_count() == 0:
+                QMessageBox.warning(self, "No Notes", 
+                                   "No notes to export. Please record some notes first.")
+                return
+            
+            filepath = self._auto_filepath('.docx')
+            logging.info("Auto export path chosen: %s", filepath)
+            
+            self.status_bar.showMessage("Exporting...")
+            QApplication.processEvents()
             
             notes = self.note_recorder.get_notes()
             duration = self.note_recorder.get_duration()
             
             if self.word_exporter.export_to_word(notes, filepath, duration):
-                QMessageBox.information(self, "Export Successful",
-                                       f"Recording exported to {filepath}")
                 self.status_bar.showMessage(f"Exported to {filepath}")
+                logging.info("Export successful: %s", filepath)
+                QMessageBox.information(self, "Export Successful",
+                                       f"Recording exported to:\n{filepath}")
             else:
                 QMessageBox.critical(self, "Export Failed",
                                     "Failed to export recording to Word")
+                self.status_bar.showMessage("Export failed")
+                logging.error("Export failed for path: %s", filepath)
+        except Exception as e:
+            error_msg = str(e)
+            logging.exception("Export error: %s", error_msg)
+            QMessageBox.critical(self, "Export Error",
+                                f"An error occurred during export:\n{error_msg}")
+            self.status_bar.showMessage("Export error")
                 
     def save_recording(self):
         """Save recording to JSON file"""
-        if self.note_recorder.get_note_count() == 0:
-            QMessageBox.warning(self, "No Notes",
-                               "No notes to save. Please record some notes first.")
-            return
-        
-        filepath, _ = QFileDialog.getSaveFileName(
-            self, "Save Recording", "", "JSON Files (*.json)")
-        
-        if filepath:
-            if not filepath.endswith('.json'):
-                filepath += '.json'
+        try:
+            logging.info("Save started")
+            if self.note_recorder.get_note_count() == 0:
+                QMessageBox.warning(self, "No Notes",
+                                   "No notes to save. Please record some notes first.")
+                return
+            
+            filepath = self._auto_filepath('.json')
+            logging.info("Auto save path chosen: %s", filepath)
+            
+            self.status_bar.showMessage("Saving...")
+            QApplication.processEvents()
             
             if self.note_recorder.save_to_file(filepath):
-                QMessageBox.information(self, "Save Successful",
-                                       f"Recording saved to {filepath}")
                 self.status_bar.showMessage(f"Saved to {filepath}")
+                logging.info("Save successful: %s", filepath)
+                QMessageBox.information(self, "Save Successful",
+                                       f"Recording saved to:\n{filepath}")
             else:
                 QMessageBox.critical(self, "Save Failed",
                                     "Failed to save recording")
+                self.status_bar.showMessage("Save failed")
+                logging.error("Save failed for path: %s", filepath)
+        except Exception as e:
+            error_msg = str(e)
+            logging.exception("Save error: %s", error_msg)
+            QMessageBox.critical(self, "Save Error",
+                                f"An error occurred while saving:\n{error_msg}")
+            self.status_bar.showMessage("Save error")
                 
     def load_recording(self):
         """Load recording from JSON file"""
-        filepath, _ = QFileDialog.getOpenFileName(
-            self, "Load Recording", "", "JSON Files (*.json)")
-        
-        if filepath:
+        try:
+            logging.info("Load started")
+            filepath = self._latest_file('json')
+            logging.info("Latest JSON file selected: %s", filepath)
+            if not filepath:
+                logging.info("No JSON files found to load")
+                QMessageBox.information(self, "No Saved Recordings",
+                                       "No saved recordings found in the exports folder.")
+                return
+            
+            self.status_bar.showMessage("Loading...")
+            QApplication.processEvents()
+            
             if self.note_recorder.load_from_file(filepath):
                 self.update_notes_display()
-                QMessageBox.information(self, "Load Successful",
-                                       f"Recording loaded from {filepath}")
                 self.status_bar.showMessage(f"Loaded from {filepath}")
+                logging.info("Load successful: %s", filepath)
+                QMessageBox.information(self, "Load Successful",
+                                       f"Recording loaded from:\n{filepath}")
             else:
                 QMessageBox.critical(self, "Load Failed",
                                     "Failed to load recording")
+                self.status_bar.showMessage("Load failed")
+                logging.error("Load failed for path: %s", filepath)
+        except Exception as e:
+            error_msg = str(e)
+            logging.exception("Load error: %s", error_msg)
+            QMessageBox.critical(self, "Load Error",
+                                f"An error occurred while loading:\n{error_msg}")
+            self.status_bar.showMessage("Load error")
                 
     def closeEvent(self, event):
         """Handle window close event"""

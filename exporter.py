@@ -3,11 +3,13 @@ Exporter Module
 Handles exporting recordings to Word documents
 """
 
-from docx import Document
-from docx.shared import Pt, Inches
-from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+import logging
+import os
 from datetime import datetime
 from typing import List, Dict
+
+from docx import Document
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 
 
 class WordExporter:
@@ -26,9 +28,17 @@ class WordExporter:
         Returns:
             True if successful, False otherwise
         """
+        logging.info("export_to_word called for %s", filepath)
         try:
+            # Ensure the directory exists
+            directory = os.path.dirname(filepath)
+            if directory and not os.path.exists(directory):
+                logging.info("Creating directory %s", directory)
+                os.makedirs(directory)
+            
             # Create document
             doc = Document()
+            logging.info("Document object created")
             
             # Add title
             title = doc.add_heading('NoteFlow Recording', 0)
@@ -101,8 +111,12 @@ class WordExporter:
             
             # Save document
             doc.save(filepath)
+            logging.info("Document saved to %s", filepath)
             return True
             
-        except Exception as e:
-            print(f"Error exporting to Word: {e}")
+        except PermissionError:
+            logging.exception("Permission denied writing %s", filepath)
+            return False
+        except Exception:
+            logging.exception("Error exporting to Word for %s", filepath)
             return False

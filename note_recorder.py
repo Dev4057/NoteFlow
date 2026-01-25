@@ -4,6 +4,8 @@ Handles recording, storing, and managing MIDI notes
 """
 
 import json
+import logging
+import os
 import time
 from typing import List, Dict, Optional
 from datetime import datetime
@@ -114,7 +116,14 @@ class NoteRecorder:
         Returns:
             True if successful, False otherwise
         """
+        logging.info("save_to_file called for %s", filepath)
         try:
+            # Ensure the directory exists
+            directory = os.path.dirname(filepath)
+            if directory and not os.path.exists(directory):
+                logging.info("Creating directory %s", directory)
+                os.makedirs(directory)
+            
             data = {
                 'recording_date': datetime.now().isoformat(),
                 'note_count': len(self.notes),
@@ -124,10 +133,14 @@ class NoteRecorder:
             
             with open(filepath, 'w') as f:
                 json.dump(data, f, indent=2)
+            logging.info("Saved JSON to %s", filepath)
             
             return True
-        except Exception as e:
-            print(f"Error saving recording to {filepath}: {e}")
+        except PermissionError:
+            logging.exception("Permission denied writing %s", filepath)
+            return False
+        except Exception:
+            logging.exception("Error saving recording to %s", filepath)
             return False
     
     def load_from_file(self, filepath: str) -> bool:
@@ -140,12 +153,27 @@ class NoteRecorder:
         Returns:
             True if successful, False otherwise
         """
+        logging.info("load_from_file called for %s", filepath)
         try:
+            if not os.path.exists(filepath):
+                logging.error("File not found: %s", filepath)
+                return False
+            
             with open(filepath, 'r') as f:
                 data = json.load(f)
             
             self.notes = data.get('notes', [])
+            logging.info("Loaded %d notes from %s", len(self.notes), filepath)
             return True
-        except Exception as e:
-            print(f"Error loading recording from {filepath}: {e}")
+        except FileNotFoundError:
+            logging.exception("File not found (race) %s", filepath)
+            return False
+        except PermissionError:
+            logging.exception("Permission denied reading %s", filepath)
+            return False
+        except json.JSONDecodeError:
+            logging.exception("Invalid JSON file %s", filepath)
+            return False
+        except Exception:
+            logging.exception("Error loading recording from %s", filepath)
             return False
