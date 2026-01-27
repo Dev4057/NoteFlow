@@ -1,0 +1,91 @@
+{
+  "recording_date": "2026-01-25T11:36:51.227150",
+  "note_count": 12,
+  "duration": 49.919519901275635,
+  "notes": [
+    {
+      "note_name": "C#4",
+      "midi_number": 73,
+      "velocity": 102,
+      "timestamp": 1769321069.7778513,
+      "relative_time": 1.5821912288665771
+    },
+    {
+      "note_name": "D#4",
+      "midi_number": 75,
+      "velocity": 102,
+      "timestamp": 1769321070.338253,
+      "relative_time": 2.1425929069519043
+    },
+    {
+      "note_name": "C#4",
+      "midi_number": 73,
+      "velocity": 102,
+      "timestamp": 1769321070.5992424,
+      "relative_time": 2.4035823345184326
+    },
+    {
+      "note_name": "D#4",
+      "midi_number": 75,
+      "velocity": 105,
+      "timestamp": 1769321070.7391727,
+      "relative_time": 2.5435125827789307
+    },
+    {
+      "note_name": "C#4",
+      "midi_number": 73,
+      "velocity": 88,
+      "timestamp": 1769321070.8294866,
+      "relative_time": 2.633826494216919
+    },
+    {
+      "note_name": "D#4",
+      "midi_number": 75,
+      "velocity": 102,
+      "timestamp": 1769321070.9121587,
+      "relative_time": 2.716498613357544
+    },
+    {
+      "note_name": "C#4",
+      "midi_number": 73,
+      "velocity": 79,
+      "timestamp": 1769321070.9987152,
+      "relative_time": 2.8030550479888916
+    },
+    {
+      "note_name": "D#4",
+      "midi_number": 75,
+      "velocity": 94,
+      "timestamp": 1769321071.0689352,
+      "relative_time": 2.8732750415802
+    },
+    {
+      "note_name": "C#4",
+      "midi_number": 73,
+      "velocity": 57,
+      "timestamp": 1769321071.13807,
+      "relative_time": 2.9424099922180176
+    },
+    {
+      "note_name": "D#4",
+      "midi_number": 75,
+      "velocity": 63,
+      "timestamp": 1769321071.1783853,
+      "relative_time": 2.982725143432617
+    },
+    {
+      "note_name": "C#4",
+      "midi_number": 73,
+      "velocity": 67,
+      "timestamp": 1769321071.2682133,
+      "relative_time": 3.0725531578063965
+    },
+    {
+      "note_name": "C2",
+      "midi_number": 48,
+      "velocity": 40,
+      "timestamp": 1769321118.11518,
+      "relative_time": 49.919519901275635
+    }
+  ]
+}
