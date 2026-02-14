@@ -12,7 +12,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                               QPushButton, QComboBox, QTextEdit, QLabel, 
                               QMessageBox, QStatusBar, QFrame, QApplication,
                               QCheckBox, QDialog, QDialogButtonBox, QSpinBox,
-                              QGroupBox)
+                              QGroupBox, QLineEdit)
 from PyQt5.QtCore import QTimer, Qt, QDateTime
 from PyQt5.QtGui import QPainter, QColor, QFont
 from midi_handler import MIDIHandler
@@ -531,9 +531,8 @@ class MusicSheetExportDialog(QDialog):
         # Title input
         title_group = QGroupBox("Recording Title")
         title_layout = QVBoxLayout()
-        self.title_edit = QTextEdit()
-        self.title_edit.setMaximumHeight(30)
-        self.title_edit.setPlainText(f"Recording - {QDateTime.currentDateTime().toString('MMM dd, yyyy')}")
+        self.title_edit = QLineEdit()
+        self.title_edit.setText(f"Recording - {QDateTime.currentDateTime().toString('MMM dd, yyyy')}")
         title_layout.addWidget(self.title_edit)
         title_group.setLayout(title_layout)
         layout.addWidget(title_group)
@@ -587,7 +586,7 @@ class MusicSheetExportDialog(QDialog):
     def get_options(self) -> Dict:
         """Get the export options from the dialog"""
         return {
-            'title': self.title_edit.toPlainText().strip(),
+            'title': self.title_edit.text().strip(),
             'measures_per_line': self.measures_spin.value(),
             'include_chords': self.include_chords_check.isChecked(),
             'include_melody': self.include_melody_check.isChecked(),

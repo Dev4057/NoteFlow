@@ -264,7 +264,10 @@ class MusicSheetExporter:
                 for i in range(len(batch)):
                     header_cell = cont_table.rows[0].cells[i]
                     header_para = header_cell.paragraphs[0]
-                    measure_num = num_cols + (len(chords) - len(remaining_chords) - len(batch)) + i + 1
+                    # Calculate measure number for continuation tables
+                    # Start after first table, add chords processed so far
+                    chords_processed = len(chords) - len(remaining_chords) - len(batch)
+                    measure_num = num_cols + chords_processed + i + 1
                     header_para.add_run(str(measure_num)).bold = True
                     header_para.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
                 

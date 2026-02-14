@@ -84,6 +84,10 @@ class NoteRecorder:
             if self.last_note_time is not None:
                 time_diff = timestamp - self.last_note_time
                 
+                # Handle edge case of negative time differences
+                if time_diff < 0:
+                    time_diff = 0
+                
                 if time_diff > self.chord_time_window:
                     # Time window expired - process pending notes as a chord or individual notes
                     self._process_pending_notes()
