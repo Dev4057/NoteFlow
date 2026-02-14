@@ -11,6 +11,31 @@ from typing import List, Dict, Optional
 from datetime import datetime
 
 
+
+# Add at the top of note_recorder.py (after imports)
+CHORDS = {
+    (0, 4, 7): "Maj",
+    (0, 3, 7): "min",
+    (0, 4, 7, 11): "Maj7",
+    (0, 3, 7, 10): "min7",
+    (0, 4, 7, 10): "7",
+    (0, 3, 6): "dim",
+    (0, 4, 8): "aug",
+}
+NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+
+def detect_chord(notes):
+    """Detect simple triad and seventh chords from MIDI numbers."""
+    if len(notes) < 3:
+        return None  # Not enough for a chord
+    notes = sorted([n % 12 for n in notes])
+    for root in set(notes):
+        intervals = tuple(sorted((n - root) % 12 for n in notes))
+        for formula, chord_type in CHORDS.items():
+            if intervals == formula:
+                return f"{NOTE_NAMES[root]}{chord_type}"
+    return None
+
 class NoteRecorder:
     """Records and manages MIDI note sequences"""
     

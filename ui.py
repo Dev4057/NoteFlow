@@ -15,6 +15,7 @@ from PyQt5.QtGui import QPainter, QColor, QFont
 from midi_handler import MIDIHandler
 from note_recorder import NoteRecorder
 from exporter import WordExporter
+from note_recorder import detect_chord  # <--- Add this
 
 
 class PianoKey:
@@ -134,8 +135,10 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
+        
         self.midi_handler = MIDIHandler()
         self.note_recorder = NoteRecorder()
+        self.currently_held_notes = set()
         self.word_exporter = WordExporter()
         self.exports_dir = os.path.join(os.path.dirname(__file__), "exports")
         os.makedirs(self.exports_dir, exist_ok=True)
@@ -320,15 +323,24 @@ class MainWindow(QMainWindow):
             self.notes_text.clear()
             self.status_bar.showMessage("Recording cleared")
             
-    def on_note_on(self, note_name: str, midi_number: int, velocity: int):
-        """Handle note on event"""
-        self.visual_keyboard.set_key_pressed(midi_number, True)
-        self.note_recorder.add_note(note_name, midi_number, velocity)
-        self.update_notes_display()
+def on_note_on(self, note_name: str, midi_number: int, velocity: int):
+    """Handle note on event"""
+    self.visual_keyboard.set_key_pressed(midi_number, True)
+    self.note_recorder.add_note(note_name, midi_number, velocity)
+    self.currently_held_notes.add(midi_number)  # Track pressed notes
+
+    # Chord Detection block
+    if len(self.currently_held_notes) >= 3:
+        chord = detect_chord(list(self.currently_held_notes))
+        if chord:
+            # Display in the notes box (append, not overwrite)
+            self.notes_text.append(f"<b>Chord Detected: {chord}</b>")
+    self.update_notes_display()
         
-    def on_note_off(self, note_name: str, midi_number: int):
-        """Handle note off event"""
-        self.visual_keyboard.set_key_pressed(midi_number, False)
+def on_note_off(self, note_name: str, midi_number: int):
+    """Handle note off event"""
+    self.visual_keyboard.set_key_pressed(midi_number, False)
+    self.currently_held_notes.discard(midi_number)  # Remove note
         
     def update_notes_display(self):
         """Update the notes display"""
