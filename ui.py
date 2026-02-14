@@ -7,14 +7,18 @@ import sys
 import os
 import glob
 import logging
+from typing import Dict
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                               QPushButton, QComboBox, QTextEdit, QLabel, 
-                              QMessageBox, QStatusBar, QFrame, QApplication)
+                              QMessageBox, QStatusBar, QFrame, QApplication,
+                              QCheckBox, QDialog, QDialogButtonBox, QSpinBox,
+                              QGroupBox, QLineEdit)
 from PyQt5.QtCore import QTimer, Qt, QDateTime
 from PyQt5.QtGui import QPainter, QColor, QFont
 from midi_handler import MIDIHandler
 from note_recorder import NoteRecorder
 from exporter import WordExporter
+from music_sheet_exporter import MusicSheetExporter
 
 
 class PianoKey:
@@ -137,6 +141,7 @@ class MainWindow(QMainWindow):
         self.midi_handler = MIDIHandler()
         self.note_recorder = NoteRecorder()
         self.word_exporter = WordExporter()
+        self.music_sheet_exporter = MusicSheetExporter()
         self.exports_dir = os.path.join(os.path.dirname(__file__), "exports")
         os.makedirs(self.exports_dir, exist_ok=True)
         
@@ -211,8 +216,13 @@ class MainWindow(QMainWindow):
         self.clear_button = QPushButton("Clear Recording")
         self.clear_button.clicked.connect(self.clear_recording)
         
+        self.chord_detection_checkbox = QCheckBox("Enable Chord Detection")
+        self.chord_detection_checkbox.setChecked(True)
+        self.chord_detection_checkbox.stateChanged.connect(self.toggle_chord_detection)
+        
         recording_layout.addWidget(self.start_stop_button)
         recording_layout.addWidget(self.clear_button)
+        recording_layout.addWidget(self.chord_detection_checkbox)
         recording_layout.addStretch()
         
         main_layout.addLayout(recording_layout)
@@ -233,6 +243,9 @@ class MainWindow(QMainWindow):
         self.export_button = QPushButton("Export to Word")
         self.export_button.clicked.connect(self.export_to_word)
         
+        self.music_sheet_button = QPushButton("Export as Music Sheet")
+        self.music_sheet_button.clicked.connect(self.export_music_sheet)
+        
         self.save_button = QPushButton("Save Recording")
         self.save_button.clicked.connect(self.save_recording)
         
@@ -240,6 +253,7 @@ class MainWindow(QMainWindow):
         self.load_button.clicked.connect(self.load_recording)
         
         file_layout.addWidget(self.export_button)
+        file_layout.addWidget(self.music_sheet_button)
         file_layout.addWidget(self.save_button)
         file_layout.addWidget(self.load_button)
         file_layout.addStretch()
@@ -309,6 +323,13 @@ class MainWindow(QMainWindow):
             self.start_stop_button.setText("Stop Recording")
             self.status_bar.showMessage("Recording...")
             
+    def toggle_chord_detection(self, state):
+        """Toggle chord detection on/off"""
+        enabled = state == Qt.Checked
+        self.note_recorder.set_chord_detection(enabled)
+        status_msg = "Chord detection enabled" if enabled else "Chord detection disabled"
+        self.status_bar.showMessage(status_msg, 3000)
+    
     def clear_recording(self):
         """Clear the current recording"""
         reply = QMessageBox.question(self, "Clear Recording",
@@ -343,6 +364,50 @@ class MainWindow(QMainWindow):
         """Poll for MIDI messages"""
         self.midi_handler.poll_messages()
         
+    def export_music_sheet(self):
+        """Export recording as music sheet with two-column layout"""
+        try:
+            logging.info("Music sheet export started")
+            if self.note_recorder.get_note_count() == 0:
+                QMessageBox.warning(self, "No Notes",
+                                   "No notes to export. Please record some notes first.")
+                return
+            
+            # Show export options dialog
+            dialog = MusicSheetExportDialog(self)
+            if dialog.exec_() != QDialog.Accepted:
+                return
+            
+            options = dialog.get_options()
+            
+            # Generate filepath
+            filepath = self._auto_filepath('.docx')
+            filepath = filepath.replace('.docx', '_music_sheet.docx')
+            logging.info("Music sheet export path chosen: %s", filepath)
+            
+            self.status_bar.showMessage("Exporting music sheet...")
+            QApplication.processEvents()
+            
+            # Get events from recorder
+            events = self.note_recorder.get_events()
+            
+            if self.music_sheet_exporter.export_to_music_sheet(events, filepath, options):
+                self.status_bar.showMessage(f"Music sheet exported to {filepath}")
+                logging.info("Music sheet export successful: %s", filepath)
+                QMessageBox.information(self, "Export Successful",
+                                       f"Music sheet exported to:\n{filepath}")
+            else:
+                QMessageBox.critical(self, "Export Failed",
+                                    "Failed to export music sheet")
+                self.status_bar.showMessage("Music sheet export failed")
+                logging.error("Music sheet export failed for path: %s", filepath)
+        except Exception as e:
+            error_msg = str(e)
+            logging.exception("Music sheet export error: %s", error_msg)
+            QMessageBox.critical(self, "Export Error",
+                                f"An error occurred during export:\n{error_msg}")
+            self.status_bar.showMessage("Music sheet export error")
+    
     def export_to_word(self):
         """Export recording to Word document"""
         try:
@@ -448,3 +513,83 @@ class MainWindow(QMainWindow):
         # Disconnect from MIDI device
         self.midi_handler.disconnect()
         event.accept()
+
+
+class MusicSheetExportDialog(QDialog):
+    """Dialog for configuring music sheet export options"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Music Sheet Export Options")
+        self.setModal(True)
+        self.setup_ui()
+    
+    def setup_ui(self):
+        """Setup the dialog UI"""
+        layout = QVBoxLayout()
+        
+        # Title input
+        title_group = QGroupBox("Recording Title")
+        title_layout = QVBoxLayout()
+        self.title_edit = QLineEdit()
+        self.title_edit.setText(f"Recording - {QDateTime.currentDateTime().toString('MMM dd, yyyy')}")
+        title_layout.addWidget(self.title_edit)
+        title_group.setLayout(title_layout)
+        layout.addWidget(title_group)
+        
+        # Measures per line
+        measures_group = QGroupBox("Layout Options")
+        measures_layout = QVBoxLayout()
+        
+        measures_row = QHBoxLayout()
+        measures_row.addWidget(QLabel("Measures per line:"))
+        self.measures_spin = QSpinBox()
+        self.measures_spin.setMinimum(2)
+        self.measures_spin.setMaximum(16)
+        self.measures_spin.setValue(4)
+        measures_row.addWidget(self.measures_spin)
+        measures_row.addStretch()
+        measures_layout.addLayout(measures_row)
+        
+        measures_group.setLayout(measures_layout)
+        layout.addWidget(measures_group)
+        
+        # Content options
+        content_group = QGroupBox("Include in Export")
+        content_layout = QVBoxLayout()
+        
+        self.include_chords_check = QCheckBox("Chord progressions (left column)")
+        self.include_chords_check.setChecked(True)
+        content_layout.addWidget(self.include_chords_check)
+        
+        self.include_melody_check = QCheckBox("Melody sequences (right column)")
+        self.include_melody_check.setChecked(True)
+        content_layout.addWidget(self.include_melody_check)
+        
+        self.detect_sections_check = QCheckBox("Detect sections (split by pauses)")
+        self.detect_sections_check.setChecked(True)
+        content_layout.addWidget(self.detect_sections_check)
+        
+        content_group.setLayout(content_layout)
+        layout.addWidget(content_group)
+        
+        # Dialog buttons
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addWidget(button_box)
+        
+        self.setLayout(layout)
+    
+    def get_options(self) -> Dict:
+        """Get the export options from the dialog"""
+        return {
+            'title': self.title_edit.text().strip(),
+            'measures_per_line': self.measures_spin.value(),
+            'include_chords': self.include_chords_check.isChecked(),
+            'include_melody': self.include_melody_check.isChecked(),
+            'detect_sections': self.detect_sections_check.isChecked(),
+            'pause_threshold': 2.0
+        }
